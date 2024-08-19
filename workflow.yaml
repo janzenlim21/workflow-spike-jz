@@ -1,0 +1,36 @@
+- randomgen_function:
+    call: http.get
+    args:
+        url: https://us-central1-workflow-jz.cloudfunctions.net/random
+    result: "randomgen_result"
+- multiply_fail:
+    try:    
+        call: http.post
+        args:
+            url: https://us-central1-workflow-jz.cloudfunctions.net/multiply
+            body:
+                input: ${randomgen_result.body.random}
+    except:
+        as: e
+        steps:
+            - known_errors:
+                switch:
+                -  condition: ${e.code == 500}
+                   next: return_error_input_result
+            - unhandled_exception:
+                raise: ${e}
+    result: multiply_result
+
+- log_function:
+    call: http.get
+    args:
+        url: https://api.mathjs.org/v4/
+        query:
+            expr: ${"log(" + string(multiply_result.body.id) + ")"}
+    result: log_result
+
+- return_result:
+    return: ${log_result}
+    
+- return_error_input_result:
+    return: "Invalid input"
